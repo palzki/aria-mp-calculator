@@ -38,13 +38,8 @@
             background: #fff;
         }
 
-        hr {
-            border: none;
-            border-top: 1px solid #ccc;
-            margin: 18px 0;
-        }
-
         .result {
+            margin-top: 14px;
             background: #fff;
             border: 1px solid #ccc;
             border-radius: 6px;
@@ -96,14 +91,13 @@
         <option value="35">35%</option>
     </select>
 
-    <hr />
+    <br />
 
     <div class="result">
         <div class="row">
             <div class="label">MP Recovery % needed on stat window</div>
             <div class="value" id="mpRecovery">0.00</div>
         </div>
-        <div class="muted">Formula: BaseMP × (1 + ((1000 / (#Hits × (BaseMP + WeaponMP%)) − 1) × 100) / 100)</div>
     </div>
 
     <script>
@@ -125,6 +119,7 @@
         const inpBase = document.getElementById("baseMP");
         const inpHits = document.getElementById("hits");
         const selWeapon = document.getElementById("weaponMP");
+        const outBonus = document.getElementById("bonusMultiplier");
         const outMP = document.getElementById("mpRecovery");
 
         // Populate character dropdown
@@ -146,12 +141,14 @@
             const hits = Number(inpHits.value) || 0;
             const weaponPct = Number(selWeapon.value) || 0;
 
-            // Internal bonus % calculation
+            // Excel-accurate formulas provided by you:
+            // Bonus % = (1000 / (#Hits * (BaseMP + WeaponMP%)) - 1) * 100
             const bonusPct = (1000 / (hits * (baseMP + weaponPct)) - 1) * 100;
 
-            // MP Recovery % value
+            // MP Recovery % (value) = BaseMP * (1 + Bonus%/100)
             const mpRecoveryValue = baseMP * (1 + (bonusPct / 100));
 
+            outBonus.textContent = isFinite(bonusPct) ? bonusPct.toFixed(2) + "%" : "—";
             outMP.textContent = isFinite(mpRecoveryValue) ? mpRecoveryValue.toFixed(2) : "—";
         }
 
