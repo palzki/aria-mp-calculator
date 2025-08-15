@@ -14,17 +14,25 @@
             border-radius: 10px;
         }
 
+        h2 {
+            text-align: center;
+        }
+
         label {
             display: block;
-            margin-top: 10px;
+            margin-top: 12px;
+            font-weight: bold;
         }
 
         select,
         input {
             width: 100%;
-            padding: 5px;
+            box-sizing: border-box;
+            padding: 8px;
             font-size: 14px;
             margin-top: 3px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
         }
 
         .result {
@@ -33,6 +41,14 @@
             background: #fff;
             padding: 10px;
             border-radius: 5px;
+            border: 1px solid #ccc;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .result span {
+            float: right;
+            font-weight: normal;
         }
     </style>
 </head>
@@ -60,7 +76,9 @@
     </select>
 
     <div class="result">
-        Bonus Multiplier % Needed: <span id="bonusMultiplier">0.00%</span><br>
+        Bonus Multiplier % Needed: <span id="bonusMultiplier">0.00%</span>
+    </div>
+    <div class="result">
         MP Recovery % Needed on Stat Window: <span id="mpRecovery">0.00%</span>
     </div>
 
@@ -100,18 +118,11 @@
             const hits = parseFloat(document.getElementById("hits").value) || 0;
             const weaponMP = parseFloat(document.getElementById("weaponMP").value) || 0;
 
-            // Bonus Multiplier % Needed
-            const bonusMultiplier = (1000 / (baseMP * (hits + (weaponMP / 100 * baseMP) / baseMP)) - 1) * 100;
-            // This matches your Excel: (1000 / (C3 * (D3 + E3)) - 1) * 100
+            // Formula from Excel
+            const bonusMultiplier = (1000 / (baseMP * (hits + weaponMP)) - 1) * 100;
+            const mpRecoveryNeeded = hits * (1 + bonusMultiplier / 100);
 
-            // In Excel, E3 is percentage (e.g., 30 means 30%), but your formula treats it as plain number
-            // So directly use weaponMP as given (not divided by 100)
-            const bonusMultiplierExcel = (1000 / (baseMP * (hits + weaponMP)) - 1) * 100;
-
-            // MP Recovery % Needed
-            const mpRecoveryNeeded = hits * (1 + bonusMultiplierExcel / 100);
-
-            document.getElementById("bonusMultiplier").textContent = bonusMultiplierExcel.toFixed(2) + "%";
+            document.getElementById("bonusMultiplier").textContent = bonusMultiplier.toFixed(2) + "%";
             document.getElementById("mpRecovery").textContent = mpRecoveryNeeded.toFixed(2) + "%";
         }
 
