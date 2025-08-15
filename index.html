@@ -64,7 +64,7 @@
         .muted {
             color: #666;
             font-size: 12px;
-            margin-top: 6px;
+            margin-top: 4px;
         }
     </style>
 </head>
@@ -74,9 +74,7 @@
 
     <label for="character">Character</label>
     <select id="character"></select>
-
-    <label for="baseMP">Character Base MP</label>
-    <input type="number" id="baseMP" readonly />
+    <div id="baseMPLabel" class="muted">Character base MP: 0</div>
 
     <label for="hits"># of Hits to Ult</label>
     <input type="number" id="hits" min="1" max="10" value="4" />
@@ -119,15 +117,13 @@
             "Clodia": 90
         };
 
-        // Elements
         const selChar = document.getElementById("character");
-        const inpBase = document.getElementById("baseMP");
+        const baseMPLabel = document.getElementById("baseMPLabel");
         const inpHits = document.getElementById("hits");
         const selWeapon = document.getElementById("weaponMP");
         const outBonus = document.getElementById("bonusMultiplier");
         const outMP = document.getElementById("mpRecovery");
 
-        // Populate character dropdown
         Object.keys(characters).forEach(name => {
             const opt = document.createElement("option");
             opt.value = name;
@@ -135,22 +131,17 @@
             selChar.appendChild(opt);
         });
         selChar.value = "Aria";
-        inpBase.value = characters["Aria"];
 
-        // Recalculate on change
         [selChar, inpHits, selWeapon].forEach(el => el.addEventListener("input", update));
 
         function update() {
             const baseMP = characters[selChar.value] || 0;
-            inpBase.value = baseMP;
+            baseMPLabel.textContent = `Character base MP: ${baseMP}`;
+
             const hits = Number(inpHits.value) || 0;
             const weaponPct = Number(selWeapon.value) || 0;
 
-            // Excel-accurate formulas provided by you:
-            // Bonus % = (1000 / (#Hits * (BaseMP + WeaponMP%)) - 1) * 100
             const bonusPct = (1000 / (hits * (baseMP + weaponPct)) - 1) * 100;
-
-            // MP Recovery % (value) = BaseMP * (1 + Bonus%/100)
             const mpRecoveryValue = baseMP * (1 + (bonusPct / 100));
 
             outBonus.textContent = isFinite(bonusPct) ? bonusPct.toFixed(2) + "%" : "—";
