@@ -148,7 +148,7 @@
         const outBonus = document.getElementById("bonusMultiplier");
         const outMP = document.getElementById("mpRecovery");
 
-        Object.keys(characters).forEach(name => {
+        Object.keys(characters).sort().forEach(name => {
             const opt = document.createElement("option");
             opt.value = name;
             opt.textContent = name;
