@@ -2,20 +2,22 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>MP Recovery Calculator</title>
     <style>
         body {
             font-family: Arial, sans-serif;
-            max-width: 400px;
+            max-width: 420px;
             margin: 30px auto;
             padding: 20px;
             background: #f4f4f4;
-            border-radius: 10px;
+            border-radius: 12px;
         }
 
         h2 {
             text-align: center;
+            margin-top: 0;
         }
 
         label {
@@ -30,25 +32,39 @@
             box-sizing: border-box;
             padding: 8px;
             font-size: 14px;
-            margin-top: 3px;
+            margin-top: 4px;
             border: 1px solid #ccc;
-            border-radius: 5px;
+            border-radius: 6px;
+            background: #fff;
         }
 
         .result {
-            margin-top: 15px;
-            font-weight: bold;
+            margin-top: 14px;
             background: #fff;
-            padding: 10px;
-            border-radius: 5px;
             border: 1px solid #ccc;
-            width: 100%;
-            box-sizing: border-box;
+            border-radius: 6px;
+            padding: 10px 12px;
         }
 
-        .result span {
-            float: right;
-            font-weight: normal;
+        .row {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            align-items: baseline;
+        }
+
+        .row .label {
+            font-weight: bold;
+        }
+
+        .row .value {
+            font-variant-numeric: tabular-nums;
+        }
+
+        .muted {
+            color: #666;
+            font-size: 12px;
+            margin-top: 6px;
         }
     </style>
 </head>
@@ -56,16 +72,16 @@
 <body>
     <h2>MP Recovery Calculator</h2>
 
-    <label for="character">Character:</label>
+    <label for="character">Character</label>
     <select id="character"></select>
 
-    <label for="baseMP">Base MP:</label>
-    <input type="number" id="baseMP" readonly>
+    <label for="baseMP">Character Base MP</label>
+    <input type="number" id="baseMP" readonly />
 
-    <label for="hits"># of Hits to Ult:</label>
-    <input type="number" id="hits" min="1" max="10" value="4">
+    <label for="hits"># of Hits to Ult</label>
+    <input type="number" id="hits" min="1" max="10" value="4" />
 
-    <label for="weaponMP">Aria Weapon MP Recovery %:</label>
+    <label for="weaponMP">Aria Weapon MP Recovery %</label>
     <select id="weaponMP">
         <option value="10">10%</option>
         <option value="15">15%</option>
@@ -76,10 +92,19 @@
     </select>
 
     <div class="result">
-        Bonus Multiplier % Needed: <span id="bonusMultiplier">0.00%</span>
+        <div class="row">
+            <div class="label">Bonus Multiplier % Needed</div>
+            <div class="value" id="bonusMultiplier">0.00%</div>
+        </div>
     </div>
+
     <div class="result">
-        MP Recovery % Needed on Stat Window: <span id="mpRecovery">0.00%</span>
+        <div class="row">
+            <div class="label">MP Recovery % needed on stat window</div>
+            <div class="value" id="mpRecovery">0.00</div>
+        </div>
+        <div class="muted">Note: This follows your Excel formula: BaseMP × (1 + Bonus%/100). It returns a value, not a %
+            sign.</div>
     </div>
 
     <script>
@@ -96,37 +121,45 @@
             "Clodia": 90
         };
 
-        // Populate dropdown
-        const charSelect = document.getElementById("character");
-        for (let name in characters) {
-            let opt = document.createElement("option");
+        // Elements
+        const selChar = document.getElementById("character");
+        const inpBase = document.getElementById("baseMP");
+        const inpHits = document.getElementById("hits");
+        const selWeapon = document.getElementById("weaponMP");
+        const outBonus = document.getElementById("bonusMultiplier");
+        const outMP = document.getElementById("mpRecovery");
+
+        // Populate character dropdown
+        Object.keys(characters).forEach(name => {
+            const opt = document.createElement("option");
             opt.value = name;
             opt.textContent = name;
-            charSelect.appendChild(opt);
-        }
-        charSelect.value = "Aria";
-        document.getElementById("baseMP").value = characters["Aria"];
-
-        // Update on input change
-        document.querySelectorAll("#character, #hits, #weaponMP").forEach(el => {
-            el.addEventListener("input", updateCalc);
+            selChar.appendChild(opt);
         });
+        selChar.value = "Aria";
+        inpBase.value = characters["Aria"];
 
-        function updateCalc() {
-            const baseMP = characters[charSelect.value];
-            document.getElementById("baseMP").value = baseMP;
-            const hits = parseFloat(document.getElementById("hits").value) || 0;
-            const weaponMP = parseFloat(document.getElementById("weaponMP").value) || 0;
+        // Recalculate on change
+        [selChar, inpHits, selWeapon].forEach(el => el.addEventListener("input", update));
 
-            // Formula from Excel
-            const bonusMultiplier = (1000 / (baseMP * (hits + weaponMP)) - 1) * 100;
-            const mpRecoveryNeeded = hits * (1 + bonusMultiplier / 100);
+        function update() {
+            const baseMP = characters[selChar.value] || 0;
+            inpBase.value = baseMP;
+            const hits = Number(inpHits.value) || 0;
+            const weaponPct = Number(selWeapon.value) || 0;
 
-            document.getElementById("bonusMultiplier").textContent = bonusMultiplier.toFixed(2) + "%";
-            document.getElementById("mpRecovery").textContent = mpRecoveryNeeded.toFixed(2) + "%";
+            // Excel-accurate formulas provided by you:
+            // Bonus % = (1000 / (#Hits * (BaseMP + WeaponMP%)) - 1) * 100
+            const bonusPct = (1000 / (hits * (baseMP + weaponPct)) - 1) * 100;
+
+            // MP Recovery % (value) = BaseMP * (1 + Bonus%/100)
+            const mpRecoveryValue = baseMP * (1 + (bonusPct / 100));
+
+            outBonus.textContent = isFinite(bonusPct) ? bonusPct.toFixed(2) + "%" : "—";
+            outMP.textContent = isFinite(mpRecoveryValue) ? mpRecoveryValue.toFixed(2) : "—";
         }
 
-        updateCalc();
+        update();
     </script>
 </body>
 
