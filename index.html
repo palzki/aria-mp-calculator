@@ -76,6 +76,20 @@
         #bonusMultiplierContainer {
             display: none;
         }
+
+        .final-result {
+            text-align: center;
+            font-size: 28px;
+            font-weight: bold;
+            background: #fff;
+            border: 2px solid #888;
+            border-radius: 10px;
+            padding: 20px;
+        }
+
+        .final-result .value {
+            font-variant-numeric: tabular-nums;
+        }
     </style>
 </head>
 
@@ -108,11 +122,9 @@
         </div>
     </div>
 
-    <div class="result">
-        <div class="row">
-            <div class="label">MP Recovery % needed on stat window</div>
-            <div class="value" id="mpRecovery">0.00</div>
-        </div>
+    <div class="label">MP Recovery % needed on stat window</div>
+    <div class="result final-result">
+        <div class="value" id="mpRecovery">0.00</div>
     </div>
 
     <script>
