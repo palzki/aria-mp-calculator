@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>MP Recovery Calculator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 400px;
+            margin: 30px auto;
+            padding: 20px;
+            background: #f4f4f4;
+            border-radius: 10px;
+        }
+
+        label {
+            display: block;
+            margin-top: 10px;
+        }
+
+        select,
+        input {
+            width: 100%;
+            padding: 5px;
+            font-size: 14px;
+            margin-top: 3px;
+        }
+
+        .result {
+            margin-top: 15px;
+            font-weight: bold;
+            background: #fff;
+            padding: 10px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+
+<body>
+    <h2>MP Recovery Calculator</h2>
+
+    <label for="character">Character:</label>
+    <select id="character"></select>
+
+    <label for="baseMP">Base MP:</label>
+    <input type="number" id="baseMP" readonly>
+
+    <label for="hits"># of Hits to Ult:</label>
+    <input type="number" id="hits" min="1" max="10" value="4">
+
+    <label for="weaponMP">Aria Weapon MP Recovery %:</label>
+    <select id="weaponMP">
+        <option value="10">10%</option>
+        <option value="15">15%</option>
+        <option value="20">20%</option>
+        <option value="25">25%</option>
+        <option value="30" selected>30%</option>
+        <option value="35">35%</option>
+    </select>
+
+    <div class="result">
+        Bonus Multiplier % Needed: <span id="bonusMultiplier">0.00%</span><br>
+        MP Recovery % Needed on Stat Window: <span id="mpRecovery">0.00%</span>
+    </div>
+
+    <script>
+        const characters = {
+            "Yuna": 170, "Baal": 110, "Adela": 170, "Crona": 170, "Maru": 130,
+            "Amethyst": 130, "Heida": 130, "Elroa": 170, "Aisha": 170, "Hana": 170,
+            "Isis": 150, "Charis": 130, "Aria": 130, "Dana": 150, "Selena": 170,
+            "Rebecca": 170, "Dorothy": 150, "Dr. Hela": 130, "Veronika": 200, "Alice": 150,
+            "Meilin": 150, "Eswood": 140, "Noel": 170, "Alisa": 150, "Clara": 170,
+            "Capt J": 150, "Priscila": 150, "Maurice": 170, "Thea": 170, "Elly": 130,
+            "Lua": 150, "Milla": 200, "Shannie": 110, "Fuuka": 200, "Neya": 130,
+            "Garnet": 200, "Edelweiss": 130, "Nana": 150, "Hilda": 200, "Aurora": 170,
+            "Emerald": 170, "Lilith": 130, "Blair": 170, "Sherrie": 170, "R character": 100,
+            "Clodia": 90
+        };
+
+        // Populate dropdown
+        const charSelect = document.getElementById("character");
+        for (let name in characters) {
+            let opt = document.createElement("option");
+            opt.value = name;
+            opt.textContent = name;
+            charSelect.appendChild(opt);
+        }
+        charSelect.value = "Aria";
+        document.getElementById("baseMP").value = characters["Aria"];
+
+        // Update on input change
+        document.querySelectorAll("#character, #hits, #weaponMP").forEach(el => {
+            el.addEventListener("input", updateCalc);
+        });
+
+        function updateCalc() {
+            const baseMP = characters[charSelect.value];
+            document.getElementById("baseMP").value = baseMP;
+            const hits = parseFloat(document.getElementById("hits").value) || 0;
+            const weaponMP = parseFloat(document.getElementById("weaponMP").value) || 0;
+
+            // Bonus Multiplier % Needed
+            const bonusMultiplier = (1000 / (baseMP * (hits + (weaponMP / 100 * baseMP) / baseMP)) - 1) * 100;
+            // This matches your Excel: (1000 / (C3 * (D3 + E3)) - 1) * 100
+
+            // In Excel, E3 is percentage (e.g., 30 means 30%), but your formula treats it as plain number
+            // So directly use weaponMP as given (not divided by 100)
+            const bonusMultiplierExcel = (1000 / (baseMP * (hits + weaponMP)) - 1) * 100;
+
+            // MP Recovery % Needed
+            const mpRecoveryNeeded = hits * (1 + bonusMultiplierExcel / 100);
+
+            document.getElementById("bonusMultiplier").textContent = bonusMultiplierExcel.toFixed(2) + "%";
+            document.getElementById("mpRecovery").textContent = mpRecoveryNeeded.toFixed(2) + "%";
+        }
+
+        updateCalc();
+    </script>
+</body>
+
+</html>
