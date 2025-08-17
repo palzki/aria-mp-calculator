@@ -6,6 +6,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>MP Recovery Calculator</title>
     <style>
+        label,
+        .label {
+            display: block;
+            margin-top: 18px;
+            margin-bottom: 2px;
+            font-weight: bold;
+        }
+
         .separator {
             border: none;
             border-top: 1px solid #ccc;
@@ -90,43 +98,79 @@
         .final-result .value {
             font-variant-numeric: tabular-nums;
         }
+
+        .rune-result {
+            margin-top: 16px;
+            background: #eaf7ea;
+            border: 1px solid #7ac77a;
+            border-radius: 6px;
+            padding: 10px 12px;
+            font-size: 15px;
+        }
+
+        .calculator-card {
+            background: #fff;
+            border-radius: 14px;
+            box-shadow: 0 4px 18px rgba(0, 0, 0, 0.08);
+            padding: 28px 22px 22px 22px;
+            margin-top: 30px;
+        }
     </style>
 </head>
 
 <body>
-    <h2>MP Recovery Calculator</h2>
+    <div class="calculator-card">
+        <h2>MP Recovery Calculator</h2>
 
-    <label for="character">Character</label>
-    <select id="character"></select>
-    <div id="baseMPLabel" class="muted">Character base MP: 0</div>
 
-    <label for="hits"># of Hits to Ult</label>
-    <input type="number" id="hits" min="1" max="10" value="4" />
+        <label for="character">Character</label>
+        <select id="character"></select>
+        <div id="baseMPLabel" class="muted">Character base MP: 0</div>
 
-    <label for="weaponMP">Aria Weapon MP Recovery %</label>
-    <select id="weaponMP">
-        <option value="10">10%</option>
-        <option value="15">15%</option>
-        <option value="20">20%</option>
-        <option value="25">25%</option>
-        <option value="30" selected>30%</option>
-        <option value="35">35%</option>
-    </select>
+        <label for="hits">Number of Hits to Ultimate</label>
+        <input type="number" id="hits" min="1" max="10" value="4" />
 
-    <hr class="separator">
+        <label for="weaponMP">Aria Weapon MP Recovery</label>
+        <select id="weaponMP">
+            <option value="10">10%</option>
+            <option value="15">15%</option>
+            <option value="20">20%</option>
+            <option value="25">25%</option>
+            <option value="30" selected>30%</option>
+            <option value="35">35%</option>
+        </select>
 
-    <div class="result" id="bonusMultiplierContainer">
-        <div class="row">
-            <div class="label">Bonus Multiplier % Needed</div>
-            <div class="value" id="bonusMultiplier">0.00%</div>
+        <label for="gearMP">Total MP Recovery from gears</label>
+        <input type="number" id="gearMP" min="0" max="999" step="0.01" value="0" />
+
+        <label for="runeSlots">Number of Runes</label>
+        <select id="runeSlots">
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+            <option value="5" selected>5</option>
+        </select>
+
+        <hr class="separator">
+
+        <div class="result" id="bonusMultiplierContainer">
+            <div class="row">
+                <div class="label">Total MP Recovery Needed</div>
+                <div class="value" id="bonusMultiplier">0.00%</div>
+            </div>
+        </div>
+
+        <div class="label">MP Recovery needed on Character window</div>
+        <div class="result final-result">
+            <div class="value" id="mpRecovery">0.00</div>
+        </div>
+
+        <div class="label">Minimum runes needed</div>
+        <div class="result final-result">
+            <div class="value" id="runeResult"></div>
         </div>
     </div>
-
-    <div class="label">MP Recovery % needed on stat window</div>
-    <div class="result final-result">
-        <div class="value" id="mpRecovery">0.00</div>
-    </div>
-
     <script>
         const characters = {
             "Yuna": 170, "Baal": 110, "Adela": 170, "Crona": 170, "Maru": 130,
@@ -141,12 +185,30 @@
             "Clodia": 90
         };
 
+        // Rune tiers, lowest to highest
+        const runeTiers = [
+            { tier: "F", value: 0.2 },
+            { tier: "E", value: 3.5 },
+            { tier: "D", value: 4 },
+            { tier: "C", value: 6 },
+            { tier: "B", value: 9 },
+            { tier: "A", value: 11 },
+            { tier: "S", value: 14 },
+            { tier: "SS", value: 18 },
+            { tier: "SSS", value: 22 },
+            { tier: "U", value: 28 },
+            { tier: "L", value: 40 }
+        ];
+
         const selChar = document.getElementById("character");
         const baseMPLabel = document.getElementById("baseMPLabel");
         const inpHits = document.getElementById("hits");
         const selWeapon = document.getElementById("weaponMP");
+        const inpGearMP = document.getElementById("gearMP");
+        const inpRuneSlots = document.getElementById("runeSlots");
         const outBonus = document.getElementById("bonusMultiplier");
         const outMP = document.getElementById("mpRecovery");
+        const runeResult = document.getElementById("runeResult");
 
         Object.keys(characters).sort().forEach(name => {
             const opt = document.createElement("option");
@@ -156,24 +218,81 @@
         });
         selChar.value = "Aria";
 
-        [selChar, inpHits, selWeapon].forEach(el => el.addEventListener("input", update));
+        [selChar, inpHits, selWeapon, inpGearMP, inpRuneSlots].forEach(el => el.addEventListener("input", update));
+
+        function getProgressiveRunes(neededPct, slots) {
+            // Start with all F runes
+            let runeCounts = Array(runeTiers.length).fill(0);
+            runeCounts[0] = slots; // all F runes
+
+            function currentTotal() {
+                return runeCounts.reduce((sum, cnt, idx) => sum + cnt * runeTiers[idx].value, 0);
+            }
+
+            // Try to upgrade one rune at a time, always the lowest tier present
+            while (currentTotal() < neededPct) {
+                // Find the lowest tier that has at least one rune to upgrade
+                let upgradeIdx = runeCounts.findIndex(cnt => cnt > 0);
+                if (upgradeIdx === runeTiers.length - 1) {
+                    // All runes are already the highest tier, can't upgrade further
+                    break;
+                }
+                // Upgrade one rune from this tier to the next higher tier
+                runeCounts[upgradeIdx]--;
+                runeCounts[upgradeIdx + 1]++;
+            }
+
+            if (currentTotal() < neededPct) {
+                return null; // Not possible with given rune slots
+            }
+
+            // Format result: only show tiers with count > 0, from lowest to highest
+            return runeCounts
+                .map((cnt, idx) => ({ cnt, tier: runeTiers[idx].tier }))
+                .filter(obj => obj.cnt > 0);
+        }
 
         function update() {
             const baseMP = characters[selChar.value] || 0;
             baseMPLabel.textContent = `Character base MP: ${baseMP}`;
 
-            const hits = Number(inpHits.value) || 0;
+            const hits = Number(inpHits.value);
             const weaponPct = Number(selWeapon.value) || 0;
+            const gearMP = parseFloat(inpGearMP.value) || 0;
+            const runeSlots = Math.max(1, Math.min(5, Number(inpRuneSlots.value) || 5));
 
-            const bonusPct = (1000 / (hits * (baseMP + weaponPct)) - 1) * 100;
+            // Require at least 1 hit
+            if (!Number.isFinite(hits) || hits < 1) {
+                outBonus.textContent = "—";
+                outMP.textContent = "—";
+                runeResult.textContent = "Please enter at least 1 for Number of Hits to Ultimate.";
+                return;
+            }
+
+            let bonusPct = (1000 / (hits * (baseMP + weaponPct)) - 1) * 100;
+            if (!isFinite(bonusPct) || bonusPct < 0) bonusPct = 0;
             const mpRecoveryValue = baseMP * (1 + (bonusPct / 100));
 
-            outBonus.textContent = isFinite(bonusPct) ? bonusPct.toFixed(2) + "%" : "—";
+            outBonus.textContent = bonusPct.toFixed(2) + "%";
             outMP.textContent = isFinite(mpRecoveryValue) ? mpRecoveryValue.toFixed(2) : "—";
+
+            // Rune calculation: use (bonusPct - gearMP)
+            let neededForRunes = bonusPct - gearMP;
+            if (!isFinite(neededForRunes) || neededForRunes < 0) neededForRunes = 0;
+
+            if (neededForRunes === 0) {
+                runeResult.textContent = "No runes needed (gear MP recovery is sufficient)";
+                return;
+            }
+            const runes = getProgressiveRunes(neededForRunes, runeSlots);
+            if (!runes) {
+                const maxPossible = runeTiers[runeTiers.length - 1].value * runeSlots;
+                runeResult.textContent = `Not possible with ${runeSlots} rune${runeSlots > 1 ? "s" : ""} (max possible: ${maxPossible.toFixed(2)}%)`;
+            } else {
+                runeResult.textContent = runes.map(r => `${r.cnt}x ${r.tier}`).join(", ");
+            }
         }
 
         update();
     </script>
 </body>
-
-</html>
