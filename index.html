@@ -85,6 +85,10 @@
             display: none;
         }
 
+        #hideIt {
+            display: none;
+        }
+
         .final-result {
             text-align: center;
             font-size: 28px;
@@ -202,15 +206,15 @@
             </div>
         </div>
 
-        <label for="runeSlots">Number of MP Recovery Runes</label>
-        <select id="runeSlots">
+        <label for="runeSlots" style="display:none;">Number of MP Recovery Runes</label>
+        <select id="runeSlots" style="display:none;">
             <option value="1">1</option>
             <option value="2">2</option>
             <option value="3">3</option>
             <option value="4">4</option>
             <option value="5" selected>5</option>
         </select>
-        <div class="muted">
+        <div class="muted" style="display:none;">
             How many MP recovery runes you want to use on the character.
         </div>
 
@@ -228,10 +232,13 @@
             <div class="value" id="mpRecovery">0.00</div>
         </div>
 
-        <div class="label">Minimum runes needed</div>
-        <div class="result final-result">
+        <div class="label" style="display:none;">Minimum runes needed</div>
+        <div class="result final-result" style="display:none;">
             <div class="value" id="runeResult"></div>
         </div>
+
+        <div class="label">MP Recovery rune(s) combinations</div>
+        <div class="result" id="runeTableResult"></div>
     </div>
     <script>
         const characters = {
@@ -363,7 +370,6 @@
             if (!Number.isFinite(hits) || hits < 1) {
                 outBonus.textContent = "—";
                 outMP.textContent = "—";
-                runeResult.textContent = "Please enter at least 1 for Number of Hits to Ultimate.";
                 return;
             }
 
@@ -378,20 +384,40 @@
             let neededForRunes = bonusPct - gearMP;
             if (!isFinite(neededForRunes) || neededForRunes < 0) neededForRunes = 0;
 
-            // neededForRunes = 67; // Test case: force needed MP Recovery to 56.2%
+            // Build rune table
+            let tableHtml = `<table style="width:100%;font-size:15px;border-collapse:collapse;">
+<tr>
+  <th style="text-align:left;padding:4px 8px;"># Runes</th>
+  <th style="text-align:left;padding:4px 8px;">Combination</th>
+</tr>`;
 
-            if (neededForRunes === 0) {
-                runeResult.textContent = "No runes needed (gear MP recovery is sufficient)";
-                return;
+            for (let slots = 1; slots <= 5; slots++) {
+                if (neededForRunes === 0) {
+                    tableHtml += `<tr>
+            <td style="padding:4px 8px;">${slots}</td>
+            <td style="padding:4px 8px;color:#090;">No runes needed</td>
+        </tr>`;
+                    continue;
+                }
+
+                const runes = getProgressiveRunes(neededForRunes, slots);
+                if (runes) {
+                    tableHtml += `<tr>
+                <td style="padding:4px 8px;">${slots}</td>
+                <td style="padding:4px 8px;">${runes.map(r => `${r.cnt}x ${r.tier}`).join(", ")}</td>
+            </tr>`;
+                } else {
+                    tableHtml += `<tr>
+                <td style="padding:4px 8px;">${slots}</td>
+                <td style="padding:4px 8px;color:#a00;">Impossible</td>
+            </tr>`;
+                }
             }
-            const runes = getProgressiveRunes(neededForRunes, runeSlots);
-            if (!runes) {
-                const maxPossible = runeTiers[runeTiers.length - 1].value * runeSlots;
-                runeResult.textContent = `Not possible with ${runeSlots} rune${runeSlots > 1 ? "s" : ""} (max possible: ${maxPossible.toFixed(2)}%)`;
-            } else {
-                runeResult.textContent = runes.map(r => `${r.cnt}x ${r.tier}`).join(", ");
-            }
+
+            tableHtml += "</table>";
+            document.getElementById("runeTableResult").innerHTML = tableHtml;
         }
+
 
         update();
     </script>
