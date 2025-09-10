@@ -115,6 +115,50 @@
             padding: 28px 22px 22px 22px;
             margin-top: 30px;
         }
+
+        label span[title] {
+            display: inline-block;
+            margin-left: 6px;
+            color: #3498db;
+            font-size: 16px;
+            cursor: help;
+            vertical-align: middle;
+            user-select: none;
+        }
+
+        .custom-tooltip-trigger {
+            position: relative;
+            display: inline-block;
+            color: #3498db;
+            font-size: 16px;
+            cursor: help;
+            margin-left: 6px;
+            vertical-align: middle;
+            user-select: none;
+        }
+
+        .custom-tooltip-content {
+            display: none;
+            position: absolute;
+            left: 22px;
+            top: 0;
+            z-index: 10;
+            background: #fff;
+            color: #222;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            padding: 10px 12px;
+            box-shadow: 0 4px 18px rgba(0, 0, 0, 0.12);
+            min-width: 220px;
+            max-width: 260px;
+            font-size: 13px;
+            white-space: normal;
+        }
+
+        .custom-tooltip-trigger:hover .custom-tooltip-content,
+        .custom-tooltip-trigger:focus .custom-tooltip-content {
+            display: block;
+        }
     </style>
 </head>
 
@@ -127,10 +171,11 @@
         <select id="character"></select>
         <div id="baseMPLabel" class="muted">Character base MP: 0</div>
 
-        <label for="hits">Number of Hits to Ultimate</label>
+        <label for="hits">Hits Needed to Charge Ultimate</label>
         <input type="number" id="hits" min="1" max="10" value="4" />
+        <div class="muted">How many hits it takes to fully charge your ultimate skill.</div>
 
-        <label for="weaponMP">Aria Weapon MP Recovery</label>
+        <label for="weaponMP">Aria's Weapon MP Recovery</label>
         <select id="weaponMP">
             <option value="0">0%</option>
             <option value="10">10%</option>
@@ -141,10 +186,23 @@
             <option value="35">35%</option>
         </select>
 
-        <label for="gearMP">Total MP Recovery from gears</label>
-        <input type="number" id="gearMP" min="0" max="999" step="0.01" value="0" />
+        <div style="margin-top:12px;">
+            <label for="gearMP" style="display:inline-block;">
+                Total MP Recovery from gears
+                <span class="custom-tooltip-trigger">&#9432;
+                    <span class="custom-tooltip-content">
+                        <img src="mpRecOnGears.png" alt="Where to find MP Recovery on gear"
+                            style="max-width:260px;display:block;margin-top:6px;border-radius:6px;">
+                    </span>
+                </span>
+            </label>
+            <input type="number" id="gearMP" min="0" max="999" step="0.01" value="0" />
+            <div class="muted">
+                MP Recovery shown on your gear stats.
+            </div>
+        </div>
 
-        <label for="runeSlots">Number of Runes</label>
+        <label for="runeSlots">Number of MP Recovery Runes</label>
         <select id="runeSlots">
             <option value="1">1</option>
             <option value="2">2</option>
@@ -152,6 +210,9 @@
             <option value="4">4</option>
             <option value="5" selected>5</option>
         </select>
+        <div class="muted">
+            How many MP recovery runes you want to use on the character.
+        </div>
 
         <hr class="separator">
 
@@ -188,17 +249,17 @@
 
         // Rune tiers, lowest to highest
         const runeTiers = [
-            { tier: "F", value: 0.2 },
-            { tier: "E", value: 3.5 },
-            { tier: "D", value: 4 },
-            { tier: "C", value: 6 },
-            { tier: "B", value: 9 },
-            { tier: "A", value: 11 },
-            { tier: "S", value: 14 },
-            { tier: "SS", value: 18 },
-            { tier: "SSS", value: 22 },
-            { tier: "U", value: 28 },
-            { tier: "L", value: 40 }
+            { tier: "F", value: 0.2, cost: 1 },
+            { tier: "E", value: 3.5, cost: 10 },
+            { tier: "D", value: 4, cost: 100 },
+            { tier: "C", value: 6, cost: 1000 },
+            { tier: "B", value: 9, cost: 10000 },
+            { tier: "A", value: 11, cost: 100000 },
+            { tier: "S", value: 14, cost: 1000000 },
+            { tier: "SS", value: 18, cost: 10000000 },
+            { tier: "SSS", value: 22, cost: 100000000 },
+            { tier: "U", value: 28, cost: 1000000000 },
+            { tier: "L", value: 40, cost: 10000000000 }
         ];
 
         const selChar = document.getElementById("character");
@@ -222,35 +283,71 @@
         [selChar, inpHits, selWeapon, inpGearMP, inpRuneSlots].forEach(el => el.addEventListener("input", update));
 
         function getProgressiveRunes(neededPct, slots) {
-            // Start with all F runes
-            let runeCounts = Array(runeTiers.length).fill(0);
-            runeCounts[0] = slots; // all F runes
+            const scale = 100;
+            const intNeeded = Math.ceil(neededPct * scale);
+            const intTiers = runeTiers.map(rt => Math.round(rt.value * scale));
+            const intCosts = runeTiers.map(rt => rt.cost);
+            const maxValue = slots * Math.max(...intTiers);
 
-            function currentTotal() {
-                return runeCounts.reduce((sum, cnt, idx) => sum + cnt * runeTiers[idx].value, 0);
-            }
+            // dp[s][v] = runeCounts array or null, for s slots and value v
+            const dp = Array.from({ length: slots + 1 }, () => Array(maxValue + 1).fill(null));
+            dp[0][0] = Array(runeTiers.length).fill(0);
 
-            // Try to upgrade one rune at a time, always the lowest tier present
-            while (currentTotal() < neededPct) {
-                // Find the lowest tier that has at least one rune to upgrade
-                let upgradeIdx = runeCounts.findIndex(cnt => cnt > 0);
-                if (upgradeIdx === runeTiers.length - 1) {
-                    // All runes are already the highest tier, can't upgrade further
-                    break;
+            for (let s = 0; s < slots; s++) {
+                for (let v = 0; v <= maxValue; v++) {
+                    if (!dp[s][v]) continue;
+                    for (let t = 0; t < runeTiers.length; t++) {
+                        const newV = v + intTiers[t];
+                        if (newV > maxValue) continue;
+                        const newCounts = dp[s][v].slice();
+                        newCounts[t]++;
+                        // If not set or this combination has a lower total rune cost, update
+                        if (
+                            !dp[s + 1][newV] ||
+                            getTotalRuneCost(newCounts, intCosts) < getTotalRuneCost(dp[s + 1][newV], intCosts) ||
+                            (
+                                getTotalRuneCost(newCounts, intCosts) === getTotalRuneCost(dp[s + 1][newV], intCosts) &&
+                                compareRuneCounts(newCounts, dp[s + 1][newV]) < 0
+                            )
+                        ) {
+                            dp[s + 1][newV] = newCounts;
+                        }
+                    }
                 }
-                // Upgrade one rune from this tier to the next higher tier
-                runeCounts[upgradeIdx]--;
-                runeCounts[upgradeIdx + 1]++;
             }
 
-            if (currentTotal() < neededPct) {
-                return null; // Not possible with given rune slots
+            // Find the minimal total rune cost for value >= neededPct with exactly 'slots' runes
+            let best = null;
+            let bestCost = Infinity;
+            for (let v = intNeeded; v <= maxValue; v++) {
+                if (dp[slots][v]) {
+                    const totalCost = getTotalRuneCost(dp[slots][v], intCosts);
+                    if (
+                        totalCost < bestCost ||
+                        (totalCost === bestCost && compareRuneCounts(dp[slots][v], best) < 0)
+                    ) {
+                        best = dp[slots][v];
+                        bestCost = totalCost;
+                    }
+                }
             }
-
-            // Format result: only show tiers with count > 0, from lowest to highest
-            return runeCounts
+            if (!best) return null;
+            return best
                 .map((cnt, idx) => ({ cnt, tier: runeTiers[idx].tier }))
                 .filter(obj => obj.cnt > 0);
+
+            // Prefer more of higher tiers if cost is equal (from highest to lowest)
+            function compareRuneCounts(a, b) {
+                if (!b) return -1;
+                for (let i = runeTiers.length - 1; i >= 0; i--) {
+                    if (a[i] !== b[i]) return b[i] - a[i];
+                }
+                return 0;
+            }
+        }
+
+        function getTotalRuneCost(counts, intCosts) {
+            return counts.reduce((sum, cnt, idx) => sum + cnt * intCosts[idx], 0);
         }
 
         function update() {
@@ -280,6 +377,8 @@
             // Rune calculation: use (bonusPct - gearMP)
             let neededForRunes = bonusPct - gearMP;
             if (!isFinite(neededForRunes) || neededForRunes < 0) neededForRunes = 0;
+
+            // neededForRunes = 67; // Test case: force needed MP Recovery to 56.2%
 
             if (neededForRunes === 0) {
                 runeResult.textContent = "No runes needed (gear MP recovery is sufficient)";
