@@ -372,8 +372,10 @@
                 outMP.textContent = "—";
                 return;
             }
-
-            let bonusPct = (1000 / (hits * (baseMP + weaponPct)) - 1) * 100;
+            // Calculate MP needed per hit, rounded up
+            const mpPerHit = Math.ceil(1000 / hits);
+            
+            let bonusPct = (mpPerHit / (baseMP + weaponPct) - 1) * 100;
             if (!isFinite(bonusPct) || bonusPct < 0) bonusPct = 0;
             const mpRecoveryValue = baseMP * (1 + (bonusPct / 100));
 
